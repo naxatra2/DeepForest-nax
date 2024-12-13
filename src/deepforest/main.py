@@ -431,7 +431,6 @@ class deepforest(pl.LightningModule, PyTorchModelHubMixin):
         Deprecation warning: The return_plot argument is deprecated and will be removed in 2.0. Use visualize.plot_results on the result instead.
 
         Args:
-            (earlier) csv_file: path to csv file
             csv_file (str or pd.DataFrame): Path to a CSV file or a DataFrame with annotations.
             root_dir: directory of images. If none, uses "image_dir" in config
             (deprecated) savedir: directory to save images with bounding boxes
