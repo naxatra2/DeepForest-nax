@@ -84,6 +84,9 @@ class CropModel(LightningModule):
 
     def __init__(self, num_classes=2, batch_size=4, num_workers=0, lr=0.0001, model=None):
         super().__init__()
+        # Add label mapping
+        self.label_map = {0: "False", 1: "True"}
+        self.reverse_label_map = {"False": 0, "True": 1}
 
         # Model
         self.num_classes = num_classes
@@ -116,10 +119,24 @@ class CropModel(LightningModule):
         self.trainer = Trainer(**kwargs)
 
     def load_from_disk(self, train_dir, val_dir):
-        self.train_ds = ImageFolder(root=train_dir,
-                                    transform=self.get_transform(augment=True))
-        self.val_ds = ImageFolder(root=val_dir,
-                                  transform=self.get_transform(augment=False))
+        # Load datasets with string label mapping
+        class LabeledImageFolder(ImageFolder):
+
+            def __init__(self, *args, label_map=None, **kwargs):
+                super().__init__(*args, **kwargs)
+                if label_map:
+                    self.classes = [label_map[i] for i in range(len(self.classes))]
+                    self.class_to_idx = {
+                        cls_name: i for i, cls_name in enumerate(self.classes)
+                    }
+
+        self.train_ds = LabeledImageFolder(root=train_dir,
+                                           transform=self.get_transform(augment=True),
+                                           label_map=self.label_map)
+
+        self.val_ds = LabeledImageFolder(root=val_dir,
+                                         transform=self.get_transform(augment=False),
+                                         label_map=self.label_map)
 
     def get_transform(self, augment):
         """Returns the data transformation pipeline for the model.
@@ -152,14 +169,17 @@ class CropModel(LightningModule):
             None
         """
 
-        # Create a directory for each label
-        for label in labels:
+        # Convert numeric labels to strings
+        string_labels = [self.label_map[label] for label in labels]
+
+        # Create directories using string labels
+        for label in set(string_labels):
             os.makedirs(os.path.join(savedir, label), exist_ok=True)
 
         # Use rasterio to read the image
         for index, box in enumerate(boxes):
             xmin, ymin, xmax, ymax = box
-            label = labels[index]
+            label = string_labels[index]
             image = images[index]
             with rasterio.open(os.path.join(root_dir, image)) as src:
                 # Crop the image using the bounding box coordinates

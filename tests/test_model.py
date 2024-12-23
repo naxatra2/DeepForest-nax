@@ -9,13 +9,7 @@ from torchvision import transforms
 import cv2
 
 
-# The model object is achitecture agnostic container.
-def test_model_no_args(config):
-    with pytest.raises(ValueError):
-        model.Model(config)
-
-
-# The model object is achitecture agnostic container.
+# The model object is architecture agnostic container.
 def test_model_no_args(config):
     with pytest.raises(ValueError):
         model.Model(config)
@@ -28,23 +22,21 @@ def crop_model():
     return crop_model
 
 
-def test_crop_model(
-        crop_model):  # Use pytest tempdir fixture to create a temporary directory
+def test_crop_model(crop_model):
     # Test forward pass
     x = torch.rand(4, 3, 224, 224)
     output = crop_model.forward(x)
     assert output.shape == (4, 2)
 
     # Test training step
-    batch = (x, torch.tensor([0, 1, 0, 1]))
+    batch = (x, torch.tensor([True, False, True, False]).long())  # Convert to long
     loss = crop_model.training_step(batch, batch_idx=0)
     assert isinstance(loss, torch.Tensor)
 
     # Test validation step
-    val_batch = (x, torch.tensor([0, 1, 0, 1]))
+    val_batch = (x, torch.tensor([True, False, True, False]).long())  # Convert to long
     val_loss = crop_model.validation_step(val_batch, batch_idx=0)
     assert isinstance(val_loss, torch.Tensor)
-
 
 def test_crop_model_train(crop_model, tmpdir):
     df = pd.read_csv(get_data("testfile_multi.csv"))
@@ -92,3 +84,11 @@ def test_crop_model_custom_transform():
     crop_model.get_transform = custom_transform
     output = crop_model.forward(x)
     assert output.shape == (4, 2)
+
+
+def test_crop_model_output_labels(crop_model):
+    # Test that the model outputs class indices 0 or 1
+    x = torch.rand(4, 3, 224, 224)
+    output = crop_model.forward(x)
+    predicted_labels = torch.argmax(output, dim=1)
+    assert all(label in [0, 1] for label in predicted_labels)
